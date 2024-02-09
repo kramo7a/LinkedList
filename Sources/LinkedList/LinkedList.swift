@@ -10,8 +10,8 @@
 
 public struct LinkedList<Element> {
     
-    public var headNode: Node?
-    public var tailNode: Node?
+    public fileprivate(set) var headNode: Node?
+    public fileprivate(set) var tailNode: Node?
 
     /// The number of elements in the linked list.
     ///
@@ -42,16 +42,18 @@ public struct LinkedList<Element> {
 extension LinkedList {
     
     public class Node {
-        public var value: Element
-        public var next: Node?
-        public weak var previous: Node?
-        
+        public fileprivate(set) var value: Element
+        public fileprivate(set) var next: Node?
+        public fileprivate(set) weak var previous: Node?
+
         public init(value: Element) {
             self.value = value
         }
     }
     
 }
+
+extension LinkedList.Node: Identifiable where Element: Identifiable { }
 
 //MARK: - Initializers
 public extension LinkedList {
@@ -79,19 +81,24 @@ public extension LinkedList {
 extension LinkedList {
     /// Creates a chain of nodes from a sequence. Returns `nil` if the sequence is empty.
     private func chain<S>(of sequence: S) -> (head: Node, tail: Node, count: Int)? where S: Sequence, S.Element == Element {
+      return chain(of: sequence.map { Node(value: $0) })
+    }
+
+    /// Creates a chain of nodes from a sequence of nodes. Returns `nil` if the sequence is empty.
+    private func chain<S>(of sequence: S) -> (head: Node, tail: Node, count: Int)? where S: Sequence, S.Element == Node {
         var iterator = sequence.makeIterator()
         var head, tail: Node
         var count = 0
         guard let firstValue = iterator.next() else {
             return nil
         }
-        
-        var currentNode = Node(value: firstValue)
+
+        var currentNode = firstValue
         head = currentNode
         count = 1
-        
+
         while let nextElement = iterator.next() {
-            let nextNode = Node(value: nextElement)
+            let nextNode = nextElement
             currentNode.next = nextNode
             nextNode.previous = currentNode
             currentNode = nextNode
@@ -174,29 +181,11 @@ extension LinkedList {
     
 }
 
-
-//MARK: - Computed Properties
-public extension LinkedList {
-    /// The element at the head (start) of the linked list.
-    ///
-    /// - Note: This value is the same as `.first`.
-    var head: Element? {
-        return headNode?.value
-    }
-    
-    /// The element at the tail (end) of the linked list.
-    ///
-    /// - Note: This value is the same as `.last`.
-    var tail: Element? {
-        return tailNode?.value
-    }
-}
-
 //MARK: - Sequence Conformance
 extension LinkedList: Sequence {
     
-    public typealias Element = Element
-    
+    public typealias Element = Node
+
     public __consuming func makeIterator() -> Iterator {
         return Iterator(node: headNode)
     }
@@ -209,12 +198,12 @@ extension LinkedList: Sequence {
             currentNode = node
         }
         
-        public mutating func next() -> Element? {
+        public mutating func next() -> Node? {
             guard let node = currentNode else {
                 return nil
             }
             currentNode = node.next
-            return node.value
+            return node
         }
         
     }
@@ -231,9 +220,9 @@ extension LinkedList: Collection {
         return Index(node: nil, offset: count, id: id)
     }
     
-    public var first: Element? {
-        return head
-    }
+//    public var first: Node? {
+//        return headNode
+//    }
     
     public var isEmpty: Bool {
         return count == 0
@@ -247,7 +236,7 @@ extension LinkedList: Collection {
     
     public struct Index: Comparable {
         fileprivate weak var node: Node?
-        fileprivate var offset: Int
+        public var offset: Int
         fileprivate weak var listID: ID?
         
         fileprivate init(node: Node?, offset: Int, id: ID) {
@@ -275,18 +264,21 @@ extension LinkedList: Collection {
     
 }
 
+extension LinkedList: RandomAccessCollection {
+  
+}
 
 //MARK: - MutableCollection Conformance
 extension LinkedList: MutableCollection {
     
-    public subscript(position: Index) -> Element {
+    public subscript(position: Index) -> Node {
         get {
             precondition(position.isMember(of: self), "LinkedList index is invalid")
             precondition(position.offset != endIndex.offset, "Index out of range")
             guard let node = position.node else {
                 preconditionFailure("LinkedList index is invalid")
             }
-            return node.value
+            return node
         }
         set {
             precondition(position.isMember(of: self), "LinkedList index is invalid")
@@ -294,9 +286,9 @@ extension LinkedList: MutableCollection {
             
             // Copy-on-write semantics for nodes
             if !isKnownUniquelyReferenced(&headNode) {
-                copyNodes(settingNodeAt: position, to: newValue)
+                copyNodes(settingNodeAt: position, to: newValue.value)
             } else {
-                position.node?.value = newValue
+                position.node?.value = newValue.value
             }
         }
     }
@@ -307,7 +299,6 @@ extension LinkedList: MutableCollection {
 //        }
 //    }
 }
-
 
 
 //MARK: - LinkedList Specific Operations
@@ -325,10 +316,14 @@ public extension LinkedList {
     /// - Parameter newElement: The element to prepend to the collection.
     ///
     /// - Complexity: O(1)
-    mutating func prepend(_ newElement: Element) {
-        replaceSubrange(startIndex..<startIndex, with: CollectionOfOne(newElement))
+    mutating func prepend(_ newNode: Node) {
+        replaceSubrange(startIndex..<startIndex, with: CollectionOfOne(newNode))
     }
-    
+
+  mutating func prepend(_ newElement: Element) {
+      prepend(Node(value: newElement))
+  }
+
     /// Adds the elements of a sequence or collection to the start of this
     /// linked list.
     ///
@@ -343,7 +338,7 @@ public extension LinkedList {
     /// - Parameter newElements: The elements to prepend to the collection.
     ///
     /// - Complexity: O(*m*), where *m* is the length of `newElements`.
-    mutating func prepend<S>(contentsOf newElements: __owned S) where S: Sequence, S.Element == Element {
+    mutating func prepend<S>(contentsOf newElements: __owned S) where S: Sequence, S.Element == Node {
         replaceSubrange(startIndex..<startIndex, with: newElements)
     }
     
@@ -358,7 +353,7 @@ public extension LinkedList {
     ///
     /// - Complexity: O(1)
     @discardableResult
-    mutating func popFirst() -> Element? {
+    mutating func popFirst() -> Node? {
         if isEmpty {
             return nil
         }
@@ -366,7 +361,7 @@ public extension LinkedList {
     }
     
     @discardableResult
-    mutating func popLast() -> Element? {
+    mutating func popLast() -> Node? {
         if isEmpty {
             return nil
         }
@@ -376,10 +371,10 @@ public extension LinkedList {
 
 //MARK: - BidirectionalCollection Conformance
 extension LinkedList: BidirectionalCollection {
-    var last: Element? {
-        return tail
-    }
-    
+//    var last: Element? {
+//        return tailNode?.value
+//    }
+
     public func index(before i: Index) -> Index {
         precondition(i.isMember(of: self), "LinkedList index is invalid")
         precondition(i.offset != startIndex.offset, "LinkedList index is out of bounds")
@@ -388,17 +383,65 @@ extension LinkedList: BidirectionalCollection {
         }
         return Index(node: i.node?.previous, offset: i.offset - 1, id: id)
     }
-    
+
+}
+
+extension LinkedList {
+  public func index(of element: Element) -> Index? where Element: Equatable {
+    var offset = 0
+    var node: Node? = nil
+
+    var iterator = makeIterator()
+    while let currentNode = iterator.next() {
+      if currentNode.value == element {
+        node = currentNode
+        return Index(node: node, offset: offset, id: id)
+      }
+      offset += 1
+    }
+
+    return nil
+  }
+
+  public func index(of node: Node) -> Index? {
+    var offset = 0
+
+    var iterator = makeIterator()
+    while let currentNode = iterator.next() {
+      if currentNode === node {
+        return Index(node: node, offset: offset, id: id)
+      }
+      offset += 1
+    }
+
+    return nil
+  }
+
+  public subscript (element: Element) -> Node? where Element: Equatable {
+    get {
+      guard let index = index(of: element) else { return nil }
+      return self[index]
+    }
+  }
 }
 
 //MARK: - RangeReplaceableCollection Conformance
 extension LinkedList: RangeReplaceableCollection {
-    public mutating func append<S>(contentsOf newElements: __owned S) where S: Sequence, Element == S.Element {
+
+    public mutating func append<S>(contentsOf newElements: __owned S) where S: Sequence, Node == S.Element {
         replaceSubrange(endIndex..<endIndex, with: newElements)
     }
+
+    public mutating func append<S>(contentsOf newElements: __owned S) where S: Sequence, Element == S.Element {
+       replaceSubrange(endIndex..<endIndex, with: newElements.map { Node(value: $0) })
+    }
     
-    public mutating func replaceSubrange<S, R>(_ subrange: R, with newElements: __owned S) where S: Sequence, R: RangeExpression, Element == S.Element, Index == R.Bound {
-        
+    public mutating func append(_ newElement: Element) {
+        append(Node(value: newElement))
+    }
+
+    public mutating func replaceSubrange<S, R>(_ subrange: R, with newElements: __owned S) where S: Sequence, R: RangeExpression, Node == S.Element, Index == R.Bound {
+
         var range = subrange.relative(to: indices)
         precondition(range.lowerBound.isMember(of: self) && range.upperBound.isMember(of: self), "LinkedList range of indices are invalid")
         precondition(range.lowerBound >= startIndex && range.upperBound <= endIndex, "Subrange bounds are out of range")
@@ -523,7 +566,7 @@ extension LinkedList: ExpressibleByArrayLiteral {
 //MARK: - CustomStringConvertible Conformance
 extension LinkedList: CustomStringConvertible {
     public var description: String {
-        return "[" + lazy.map { "\($0)" }.joined(separator: ", ") + "]"
+      return "[" + lazy.map { "\($0.value)" }.joined(separator: ", ") + "]"
     }
 }
 
@@ -534,7 +577,7 @@ extension LinkedList: Equatable where Element: Equatable {
             return false
         }
         for (a, b) in zip(lhs, rhs) {
-            guard a == b else {
+          guard a.value == b.value else {
                 return false
             }
         }
