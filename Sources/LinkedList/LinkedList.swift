@@ -10,9 +10,9 @@
 
 public struct LinkedList<Element> {
     
-    private var headNode: Node?
-    private var tailNode: Node?
-    
+    public var headNode: Node?
+    public var tailNode: Node?
+
     /// The number of elements in the linked list.
     ///
     /// - Complexity: O(1)
@@ -41,7 +41,7 @@ public struct LinkedList<Element> {
 //MARK: - LinkedList Node
 extension LinkedList {
     
-    fileprivate class Node {
+    public class Node {
         public var value: Element
         public var next: Node?
         public weak var previous: Node?
