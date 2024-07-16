@@ -53,6 +53,8 @@ extension LinkedList {
     
 }
 
+@available(iOS 13.0, *)
+@available(macOS 10.15, *)
 extension LinkedList.Node: Identifiable where Element: Identifiable { }
 
 //MARK: - Initializers
@@ -219,10 +221,6 @@ extension LinkedList: Collection {
     public var endIndex: Index {
         return Index(node: nil, offset: count, id: id)
     }
-    
-//    public var first: Node? {
-//        return headNode
-//    }
     
     public var isEmpty: Bool {
         return count == 0
