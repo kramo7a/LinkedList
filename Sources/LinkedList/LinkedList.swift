@@ -6,9 +6,7 @@
 //  Copyright © 2019 Noah Wilder. All rights reserved.
 //
 
-
-
-public struct LinkedList<Element> {
+public struct LinkedList<Element: Sendable>: Sendable {
     
     public fileprivate(set) var headNode: Node?
     public fileprivate(set) var tailNode: Node?
@@ -33,7 +31,7 @@ public struct LinkedList<Element> {
     ///     // Prints "true"
     public init() { }
     
-    fileprivate class ID {
+  fileprivate final class ID: Sendable {
         init() { }
     }
 }
@@ -41,7 +39,7 @@ public struct LinkedList<Element> {
 //MARK: - LinkedList Node
 extension LinkedList {
     
-    public class Node {
+  public final class Node: @unchecked Sendable {
         public fileprivate(set) var value: Element
         public fileprivate(set) var next: Node?
         public fileprivate(set) weak var previous: Node?
@@ -434,8 +432,8 @@ extension LinkedList: RangeReplaceableCollection {
        replaceSubrange(endIndex..<endIndex, with: newElements.map { Node(value: $0) })
     }
     
-    public mutating func append(_ newElement: Element) {
-        append(Node(value: newElement))
+    public mutating func append(element: Element) {
+        append(Node(value: element))
     }
 
     public mutating func replaceSubrange<S, R>(_ subrange: R, with newElements: __owned S) where S: Sequence, R: RangeExpression, Node == S.Element, Index == R.Bound {
@@ -449,8 +447,6 @@ extension LinkedList: RangeReplaceableCollection {
             self = linkedList
             return
         }
-        
-        var newElementsCount = 0
         
         // There are no new elements, so range indicates deletion
         guard let nodeChain = chain(of: newElements) else {
@@ -501,9 +497,6 @@ extension LinkedList: RangeReplaceableCollection {
             
             return
         }
-        
-        // Obtain the count of the new elements from the node chain composed from them
-        newElementsCount = nodeChain.count
         
         // Replace entire content of list with new elements
         if range.lowerBound == startIndex && range.upperBound == endIndex {
