@@ -6,6 +6,8 @@
 //  Copyright © 2019 Noah Wilder. All rights reserved.
 //
 
+import Foundation
+
 public struct LinkedList<Element: Sendable>: Sendable {
     
     public fileprivate(set) var headNode: Node?
@@ -36,19 +38,33 @@ public struct LinkedList<Element: Sendable>: Sendable {
     }
 }
 
+
 //MARK: - LinkedList Node
 extension LinkedList {
-    
   public final class Node: @unchecked Sendable {
-        public fileprivate(set) var value: Element
-        public fileprivate(set) var next: Node?
-        public fileprivate(set) weak var previous: Node?
+    
+    public var value: Element
+    public fileprivate(set) var next: Node?
+    public fileprivate(set) weak var previous: Node?
+    
+    public init(value: Element) {
+      self.value = value
+    }
+  }
+}
 
-        public init(value: Element) {
-            self.value = value
-        }
+extension LinkedList.Node {
+  public var index: Int? {
+    var current: LinkedList.Node? = self
+    var index = 0
+    
+    while let prev = current?.previous {
+      current = prev
+      index += 1
     }
     
+    return index
+  }
 }
 
 @available(iOS 13.0, *)
@@ -574,4 +590,53 @@ extension LinkedList: Equatable where Element: Equatable {
         }
         return true
     }
+}
+
+extension LinkedList: Hashable where Element: Hashable {
+  public func hash(into hasher: inout Hasher) {
+    for element in self {
+      hasher.combine(element.value)
+    }
+  }
+}
+
+extension LinkedList.Node: Equatable where Element: Equatable {
+  public static func == (lhs: LinkedList<Element>.Node, rhs: LinkedList<Element>.Node) -> Bool {
+    lhs.value == rhs.value && lhs.index == rhs.index
+  }
+}
+
+extension LinkedList.Node: Hashable where Element: Hashable {
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(value)
+    hasher.combine(index)
+  }
+}
+
+
+extension LinkedList: Codable where Element: Codable {
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.singleValueContainer()
+    let values = map { $0.value }
+    try container.encode(values)
+  }
+  
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    let values = try container.decode([Element].self)
+    self.init(values)
+  }
+}
+
+extension LinkedList.Node: Codable where Element: Codable {
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.singleValueContainer()
+    try container.encode(value)
+  }
+  
+  public convenience init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    let value = try container.decode(Element.self)
+    self.init(value: value)
+  }
 }
