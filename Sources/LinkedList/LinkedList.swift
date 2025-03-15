@@ -640,3 +640,18 @@ extension LinkedList.Node: Codable where Element: Codable {
     self.init(value: value)
   }
 }
+
+public extension LinkedList.Node {
+  func previousUnwrapped<Value>(_ keyPath: KeyPath<Element, Value?>) -> Value? {
+    var currentNode: LinkedList<Element>.Node? = self
+    
+    while let node = currentNode {
+      if let value = node.value[keyPath: keyPath] {
+        return value
+      }
+      currentNode = node.previous
+    }
+    
+    return nil
+  }
+}
